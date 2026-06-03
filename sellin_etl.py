@@ -19,9 +19,9 @@ import pandas as pd
 
 PATH_RAW_OLD    = r"C:\Users\USER\Documents\MEVAL\Raw data\Raw Data Sell IN - 2023-2025 (C0426) Rev 3.xlsx"
 PATH_TEMPLATE   = r"C:\Users\USER\Documents\MEVAL\TEMPLATE\2026\TEMPLATE_SELL_IN_SAP 040426.xlsx"
-PATH_SAP        = r"C:\Users\USER\Documents\SAP\SAP GUI\export customermasterlist 29052026.XLSX"
-PATH_MTD_YTD    = r"C:\Users\USER\Documents\MEVAL\MTD YTD\2026\C05\MTD YTD REPORT C05 28.05.2026.xlsx"
-PATH_SDO_UPDATE = r"C:\Users\USER\Documents\MEVAL\SDO\SDO UPDATE ALL AREA MEI.xlsx"
+PATH_SAP        = r"C:\Users\USER\Documents\SAP\SAP GUI\export customermasterlist 02062026.XLSX"
+PATH_MTD_YTD    = r"C:\Users\USER\Documents\MEVAL\MTD YTD\2026\C05\MTD YTD REPORT C05 30.05.2026 FINAL.xlsx"
+PATH_SDO_UPDATE = r"C:\Users\USER\Documents\MEVAL\SDO\SDO UPDATE ALL AREA JUNI.xlsx"
 PATH_MD_SKU     = r"C:\Users\USER\Documents\MEVAL\Master Data\skuu6.xlsx"
 PATH_SPVRSM     = r"C:\Users\USER\Documents\MEVAL\Master Data\spv rsm.xlsx"
 PATH_MS_DC      = r"C:\Users\USER\Documents\MEVAL\Master Data\ms dc.xlsx"
