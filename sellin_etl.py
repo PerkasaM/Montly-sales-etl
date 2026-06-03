@@ -722,17 +722,7 @@ def main():
     df_final = update_master_data(raw_old, raw_new)
     df_final = update_alamat(df_final, raw_new)
     df_final = update_customer_name_mt(df_final, md_group)
-    df_final = update_spv_asm_rsm(df_final, spvrsm)
-    df_final = cleaning_reg2(df_final)
-    df_final = update_desc_pricelist(df_final, pricelist)
-
-    # Uppercase Desc dan SUBPG sesuai standar raw_old
-    print("Uppercasing kolom Desc dan SUBPG...")
-    if 'Desc' in df_final.columns:
-        df_final['Desc'] = df_final['Desc'].astype(str).str.upper().replace('NAN', None)
-    if 'SUBPG' in df_final.columns:
-        df_final['SUBPG'] = df_final['SUBPG'].astype(str).str.upper().replace('NAN', None)
-
+    
     # Update SDO Update di seluruh df_final dari file konfirmasi
     print("Updating SDO Update di df_final...")
     sdo_map = (
@@ -745,6 +735,17 @@ def main():
     mask = df_final['Customer Code'].isin(sdo_map.index)
     df_final.loc[mask, 'SDO Update'] = df_final.loc[mask, 'Customer Code'].map(sdo_map)
     print(f"  {mask.sum()} baris SDO Update diupdate di df_final.")
+
+    df_final = update_spv_asm_rsm(df_final, spvrsm)
+    df_final = cleaning_reg2(df_final)
+    df_final = update_desc_pricelist(df_final, pricelist)
+
+    # Uppercase Desc dan SUBPG sesuai standar raw_old
+    print("Uppercasing kolom Desc dan SUBPG...")
+    if 'Desc' in df_final.columns:
+        df_final['Desc'] = df_final['Desc'].astype(str).str.upper().replace('NAN', None)
+    if 'SUBPG' in df_final.columns:
+        df_final['SUBPG'] = df_final['SUBPG'].astype(str).str.upper().replace('NAN', None)
 
     # 9. Simpan
     df_final.to_excel(OUTPUT_FINAL, index=False)
