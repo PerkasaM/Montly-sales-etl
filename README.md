@@ -1,109 +1,161 @@
 # ETL Sell-In Bulanan
 
-Script ETL otomatis untuk proses data **Sell-In bulanan** dari SAP menjadi file raw data final yang siap digunakan untuk reporting dan analisis.
+Automation ETL untuk proses pengolahan data Sell-In bulanan dari SAP menjadi raw data final yang siap digunakan untuk reporting dan analisa bisnis.
 
 ---
 
-# Overview
+# Business Problem
 
-Flow utama script:
+Data Sell-In merupakan data penjualan perusahaan yang berasal dari berbagai channel distribusi seperti Retail, Grosir, Modern Trade, Projects, dan channel lainnya.
+
+Setiap bulan data transaksi diperoleh dari berbagai sumber master data dan file SAP yang perlu dilakukan proses cleaning, standardisasi, mapping, serta penggabungan dengan data historis.
+
+Sebelum automation ini dibuat, proses pengolahan data dilakukan secara manual menggunakan Excel sehingga:
+
+- Membutuhkan waktu yang lama untuk proses konsolidasi data
+- Rentan terjadi human error saat mapping dan update master data
+- Sulit menjaga konsistensi data antar periode
+- Membutuhkan effort besar untuk melakukan revisi data transaksi
+- Proses analisa menjadi lebih lambat karena data belum siap digunakan
+
+Data Sell-In ini menjadi salah satu sumber utama analisa performa penjualan yang digunakan oleh Manager, ASM, RSM, dan Management setiap bulan untuk:
+
+- Monitoring penjualan per channel
+- Monitoring penjualan per area dan region
+- Analisa performa SDO
+- Analisa produk dan kategori
+- Tracking pertumbuhan penjualan bulanan
+- Penyusunan strategi penjualan berikutnya
+
+Automation ETL ini dibuat untuk mempercepat proses pengolahan data, meningkatkan akurasi, dan menghasilkan raw data yang siap digunakan untuk reporting dan analisa bisnis.
+
+---
+
+# Solution
+
+Script ini mengotomatisasi seluruh proses ETL mulai dari:
+
+- Load data SAP dan master data
+- Cleaning dan standardisasi data
+- Update master customer dan SDO
+- Mapping produk dan organisasi sales
+- Perhitungan REAL QTY
+- Penggabungan data historis dan data bulan berjalan
+- Update informasi customer, region, dan product hierarchy
+- Generate raw data final siap analisa
+
+---
+
+# ETL Architecture
 
 ```mermaid
 flowchart TD
 
-    A[Load Master Data] --> B[Load MTD YTD]
-    
-    B --> C[Cleaning Data]
-    
-    C --> C1[Normalize Customer Code]
-    C --> C2[Cleaning SDO]
-    C --> C3[Parse SAP Date]
-    C --> C4[Cleaning Region]
+A[Load Master Data]
+B[Load MTD YTD]
 
-    C --> D[Update MD_TOKO]
-    C --> E[Update MD_SDO]
+A --> C[Update MD_TOKO]
+B --> C
 
-    D --> F[Process New Month]
-    E --> F
+A --> D[Update MD_SDO]
+B --> D
 
-    F --> F1[Build raw_new]
-    F --> F2[Join MD_TOKO]
-    F --> F3[Join MD_SDO]
-    F --> F4[Join MD_SKU]
-    F --> F5[Join SPV ASM RSM]
-    F --> F6[Calculate REAL QTY]
-    F --> F7[Filter Total Net != 0]
+C --> E[Build raw_new]
+D --> E
 
-    F7 --> G[Save raw_new]
+E --> F[Join Master Data]
 
-    G --> H[Load raw_old]
+F --> F1[MD_TOKO]
+F --> F2[MD_SDO]
+F --> F3[SPV ASM RSM]
+F --> F4[SKU Master]
+F --> F5[PG1 Mapping]
+F --> F6[SUBPG1 Mapping]
+F --> F7[Group Mapping]
 
-    H --> I[Update raw_old]
-    
-    I --> I1[Update Desc Brand]
-    I --> I2[Update SDO]
-    I --> I3[Remove Total Net = 0]
+F --> G[Calculate REAL QTY]
 
-    I --> J[Merge raw_old + raw_new]
+G --> H[Export raw_new]
 
-    J --> K[Update Final Data]
+H --> I[Load raw_old]
 
-    K --> K1[Update Address]
-    K --> K2[Update Customer Name MT]
-    K --> K3[Update SPV ASM RSM]
-    K --> K4[Cleaning Region Reg2]
-    K --> K5[Update Desc Pricelist]
-    K --> K6[Uppercase Desc SUBPG]
+I --> J[Update Desc Brand]
+J --> K[Update SDO]
 
-    K --> L[Export Final Excel]
+K --> L[Merge raw_old + raw_new]
 
-    L --> M[raw_data_CXXXX_rev1.xlsx]
+L --> M[Update Final Data]
+
+M --> M1[Address]
+M --> M2[Customer Name MT]
+M --> M3[SDO Update]
+M --> M4[SPV ASM RSM]
+M --> M5[Region Reg2]
+M --> M6[Pricelist Desc]
+
+M --> N[Export Final Sell-In]
 ```
 
 ---
 
-# Fitur Utama
+# Features
 
-- Cleaning data customer & region
-- Normalisasi customer code
-- Update otomatis:
-  - MD_TOKO
-  - MD_SDO
-  - SDO Update
-  - SPV / ASM / RSM
-  - Desc product dari pricelist
-- Merge data raw lama + raw baru
-- Handle duplicate DR Number
-- Kalkulasi REAL QTY
-- Update alamat Google Maps otomatis
-- Standardisasi region & reg2
-- Export otomatis ke Excel final
+## Customer & Master Data
+
+- Auto update MD_TOKO
+- Auto update MD_SDO
+- Customer code normalization
+- Customer group standardization
+- Customer name update untuk Modern Trade
+
+## Product Mapping
+
+- SKU Mapping
+- Internal Code Mapping
+- PG Mapping
+- SUBPG Mapping
+- PG 1 Mapping
+- SUBPG1 Mapping
+- Pricelist Description Update
+
+## Sales Organization
+
+- SDO Update
+- SPV Mapping
+- ASM Mapping
+- RSM Mapping
+- Region Mapping
+- Reg2 Mapping
+
+## Data Processing
+
+- Merge raw_old + raw_new
+- Duplicate DR Number handling
+- REAL QTY calculation
+- REG/FREE classification
+- Address update
+- Data validation
 
 ---
 
-# Struktur File
+# Project Structure
 
-## File Python
-
-```bash
-sellin_etl.py
+```text
+project/
+│
+├── raw/
+├── master/
+├── output/
+├── script/
+├── backup/
+│
+├── sellin_etl.py
+└── run_sellin_etl.bat
 ```
-
-Script utama ETL.
-
-## File BAT
-
-```bash
-run_sellin_etl.bat
-```
-
-Digunakan untuk menjalankan ETL tanpa buka terminal manual.
 
 ---
 
-# Requirement
-
-Install dependency berikut:
+# Requirements
 
 ```bash
 pip install pandas openpyxl xlrd
@@ -111,72 +163,62 @@ pip install pandas openpyxl xlrd
 
 ---
 
-# Struktur Master Data
-
-Script menggunakan beberapa file master:
+# Master Data Sources
 
 | File | Fungsi |
-|---|---|
+|--------|---------|
 | Raw Data Sell IN | Data histori utama |
-| TEMPLATE_SELL_IN_SAP | MD_TOKO & MD_SDO |
-| SAP Customer Master | Data customer SAP |
+| TEMPLATE_SELL_IN_SAP | MD_TOKO dan MD_SDO |
+| SAP Customer Master | Master customer SAP |
 | MTD YTD REPORT | Data transaksi bulan berjalan |
 | SDO UPDATE | Update SDO terbaru |
-| SKU Master | Mapping SKU |
-| SPV RSM | Mapping SPV/ASM/RSM |
-| MS DC | Update desc/brand |
-| Master Data Yee | Mapping PG |
+| SKU Master | Mapping produk |
+| SPV RSM | Mapping organisasi sales |
+| MS DC | Update desc dan brand |
+| Master Data Yee | Mapping PG 1 |
 | Group | Mapping customer group |
 | SWM Grouping | Mapping SUBPG1 |
 | Pricelist | Update description terbaru |
 
 ---
 
+# Configuration
+
+Update bagian berikut setiap bulan:
+
+```python
+PATH_RAW_OLD
+PATH_TEMPLATE
+PATH_SAP
+PATH_MTD_YTD
+PATH_SDO_UPDATE
+PATH_MD_SKU
+PATH_SPVRSM
+PATH_MS_DC
+PATH_MD_YEE
+PATH_GROUP
+PATH_SWM
+PATH_PRICELIST
+```
+
+Update cycle:
+
+```python
+CYCLE = "C06"
+DUMMY_CYCLE = "C0626"
+```
+
+---
+
 # Cara Menjalankan
 
-## 1. Update CONFIG
-
-Di bagian atas script:
-
-```python
-PATH_RAW_OLD    = r"..."
-PATH_TEMPLATE   = r"..."
-PATH_SAP        = r"..."
-PATH_MTD_YTD    = r"..."
-```
-
-Sesuaikan seluruh path file.
-
----
-
-## 2. Update Cycle Bulanan
-
-```python
-CYCLE       = "C05"
-DUMMY_CYCLE = "C0526"
-MTD_SHEET   = "SAP CUMULATIVE"
-```
-
-Contoh:
-
-| Bulan | CYCLE | DUMMY_CYCLE |
-|---|---|---|
-| Mei 2026 | C05 | C0526 |
-| Juni 2026 | C06 | C0626 |
-
----
-
-## 3. Jalankan Script
-
-### Via terminal
+## Via Terminal
 
 ```bash
 python sellin_etl.py
 ```
 
-### Atau via BAT
-
-Double click:
+## Via BAT
 
 ```bash
 run_sellin_etl.bat
@@ -186,328 +228,107 @@ run_sellin_etl.bat
 
 # Output
 
-Script menghasilkan 2 file:
+Script menghasilkan:
 
-| Output | Fungsi |
-|---|---|
-| raw_new_CXXXX.xlsx | Data bulan baru |
+| Output | Keterangan |
+|----------|-----------|
+| raw_new_CXXXX.xlsx | Data bulan berjalan |
 | raw_data_CXXXX_rev1.xlsx | Data final gabungan |
 
 Contoh:
 
-```bash
-raw_new_C0526.xlsx
-raw_data_C0526_rev1.xlsx
+```text
+raw_new_C0626.xlsx
+raw_data_C0626_rev1.xlsx
 ```
 
 ---
 
-# Penjelasan Proses ETL
+# Business Rules
 
-## 1. Load Master Data
+## Customer Group Mapping
 
-Function:
-
-```python
-load_master_data()
-```
-
-Load seluruh master data yang dibutuhkan.
-
----
-
-## 2. Update MD_TOKO
-
-Function:
-
-```python
-update_md_toko()
-```
-
-Menambahkan customer baru otomatis dari SAP & MTD.
-
-### Flow Update MD_TOKO & MD_SDO
-
-```mermaid
-flowchart TD
-
-    A[Customer Baru dari MTD] --> B{Ada di MD_TOKO?}
-
-    B -->|No| C[Ambil Data dari SAP]
-    B -->|Yes| D[Skip]
-
-    C --> E[Mapping Region SDO Type]
-    E --> F[Tambah ke MD_TOKO]
-
-    A --> G{Ada di MD_SDO?}
-
-    G -->|No| H[Ambil SDO Update]
-    G -->|Yes| I[Skip]
-
-    H --> J[Tambah ke MD_SDO]
-```
+| SAP Type | Output |
+|-----------|---------|
+| 2 | RETAIL |
+| 3 | GROSIR |
+| 5 | OTHERS |
+| 16 | SEMI-GROSIR |
 
 ---
 
-## 3. Update MD_SDO
-
-Function:
-
-```python
-update_md_sdo()
-```
-
-Update SDO customer:
-- dari file konfirmasi
-- fallback dari MTD
-
----
-
-## 4. Process New Month
-
-Function:
-
-```python
-process_new_month()
-```
-
-Tahapan:
-- build raw_new
-- merge seluruh master
-- mapping SKU
-- hitung REAL QTY
-- generate cycle
-- filtering Total Net = 0
-
----
-
-## 5. Merge Raw Lama + Baru
-
-Function:
-
-```python
-update_master_data()
-```
-
-Logic:
-- DR Number lama yang direvisi dihapus
-- raw_new replace raw_old
-
-### Flow Merge DR Number
-
-```mermaid
-flowchart TD
-
-    A[raw_old] --> B[Check DR Number]
-    C[raw_new] --> B
-
-    B --> D{DR Number Sama?}
-
-    D -->|Yes| E[Hapus dari raw_old]
-    D -->|No| F[Keep Data Lama]
-
-    E --> G[Gabungkan raw_new]
-    F --> G
-
-    G --> H[df_final]
-```
-
----
-
-## 6. Update Final Data
-
-Termasuk:
-- update alamat
-- update desc
-- update region
-- update SPV/ASM/RSM
-- update customer modern trade
-
----
-
-# Function Penting
-
-| Function | Fungsi |
-|---|---|
-| cleaning_type | Cleaning customer group |
-| cleaning_region | Cleaning region |
-| normalize_customer_code | Format customer code |
-| cleaning_sdo | Cleaning nama SDO |
-| parse_sap_date | Convert tanggal SAP |
-| realqty | Hitung multiplier qty |
-
----
-
-# Logic REAL QTY
-
-Contoh:
+## REAL QTY Logic
 
 | Internal Code | Multiplier |
-|---|---|
-| AB4 / EB4 | x4 |
-| AB3 / BBT | x3 |
+|--------------|------------|
+| AB4 / EB4 / BL4 / XB4 | x4 |
+| AB3 / BBT / EB3 / ER3 / BB2 | x3 |
 | BBL | x5 |
-| lainnya | x1 |
+| Others | x1 |
 
 Formula:
 
-```python
-REAL QTY = QTY * multiplier
-```
-
-### Flow REAL QTY
-
-```mermaid
-flowchart TD
-
-    A[Internal Code] --> B{Contains AB4 / EB4 / BL4?}
-
-    B -->|Yes| C[x4]
-    B -->|No| D{Contains AB3 / BBT / EB3?}
-
-    D -->|Yes| E[x3]
-    D -->|No| F{Contains BBL?}
-
-    F -->|Yes| G[x5]
-    F -->|No| H[x1]
-
-    C --> I[REAL QTY = QTY * Multiplier]
-    E --> I
-    G --> I
-    H --> I
+```text
+REAL QTY = QTY × Multiplier
 ```
 
 ---
 
-# Handling Duplicate DR Number
+## REG/FREE Classification
 
-Script otomatis:
+| Condition | Result |
+|------------|---------|
+| Total (with VAT) < 1000 | FREE |
+| Total (with VAT) ≥ 1000 | REG |
 
-```python
-raw_old_filtered = raw_old[~raw_old['DR Number'].isin(doc_revisi)]
-```
+---
+
+## Duplicate DR Number Handling
+
+Saat proses merge:
+
+- DR Number yang muncul di raw_new dianggap data terbaru
+- Data lama pada raw_old akan dihapus
+- Data raw_new akan menggantikan data lama
 
 Tujuan:
-- menghapus transaksi lama yang sudah direvisi
-- mengganti dengan data terbaru
+
+- Menghindari double counting
+- Mengakomodasi revisi transaksi dari SAP
 
 ---
 
-# Standardisasi Region
+# Final Data Enrichment
 
-Function:
+Setelah merge selesai dilakukan update:
 
-```python
-cleaning_reg2()
-```
-
-Contoh mapping:
-
-| RSM / ASM | Region |
-|---|---|
-| IMAM SHOVII | CENTRAL JAVA |
-| JEKY TIRTA | SULAWESI |
-| IMAM TAUFIQ | WEST JAVA |
-
----
-
-# Error yang Sering Terjadi
-
-## File tidak ditemukan
-
-```python
-FileNotFoundError
-```
-
-Cek:
-- path file
-- nama file
-- extension
+- Google Maps Address
+- Customer Name Modern Trade
+- SDO Update
+- SPV
+- ASM
+- RSM
+- Region
+- Reg2
+- Product Description
+- PG 1
+- SUBPG1
 
 ---
 
-## Sheet tidak ditemukan
+# Future Improvements
 
-```python
-ValueError: Worksheet not found
-```
-
-Cek:
-
-```python
-MTD_SHEET = "SAP CUMULATIVE"
-```
-
-Pastikan nama sheet benar.
-
----
-
-## Kolom tidak ada
-
-```python
-KeyError
-```
-
-Biasanya karena:
-- format file berubah
-- nama kolom SAP berubah
-
----
-
-# Best Practice
-
-Disarankan struktur folder:
-
-```bash
-project/
-│
-├── raw/
-├── master/
-├── output/
-├── script/
-└── backup/
-```
-
----
-
-# Future Improvement
-
-Beberapa improvement yang bisa ditambahkan:
-
-- Logging otomatis
-- Config YAML
-- GUI sederhana
-- Auto detect cycle
-- Database integration
-- Scheduler automation
-- Error report otomatis
-- Email notification
-
----
-
-# Simple Architecture Flow
-
-```mermaid
-flowchart LR
-
-    SAP[MTD YTD SAP]
-    MASTER[Master Data]
-    RAWOLD[Raw Old]
-
-    SAP --> ETL[ETL Processing]
-    MASTER --> ETL
-
-    ETL --> RAWNEW[raw_new]
-
-    RAWOLD --> MERGE[Merge Data]
-    RAWNEW --> MERGE
-
-    MERGE --> FINAL[Final Raw Data Excel]
-```
+- YAML Configuration
+- Logging System
+- Error Handling Report
+- Scheduler Automation
+- Email Notification
+- Database Integration
+- Dashboard Integration
+- Auto Cycle Detection
 
 ---
 
 # Author
 
-Developed for internal ETL automation & sell-in reporting process.
-
+Developed for internal Sell-In ETL Automation and Sales Performance Reporting.
