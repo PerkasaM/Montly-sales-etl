@@ -31,8 +31,8 @@ PATH_SWM        = r"C:\Users\USER\Documents\MEVAL\Master Data\SWM_grouping_.xlsx
 PATH_PRICELIST  = r"C:\Users\USER\Documents\MEVAL\Master Data\PRICELIST MEVAL 01042026 INT.xlsx"    
 
 # Info cycle bulan ini — ganti setiap bulan
-CYCLE       = "C05"
-DUMMY_CYCLE = "C0526"
+CYCLE       = "C06"
+DUMMY_CYCLE = "C0626"
 MTD_SHEET   = "SAP CUMULATIVE"
 
 # File output
