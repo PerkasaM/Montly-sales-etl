@@ -1,48 +1,36 @@
-# ETL Sell-In Bulanan
+# Sales Data ETL Pipeline
 
-Automation ETL untuk proses pengolahan data Sell-In bulanan dari SAP menjadi raw data final yang siap digunakan untuk reporting dan analisa bisnis.
+An automated ETL pipeline for processing monthly sales transaction data into a clean, standardized, and analytics-ready dataset.
 
 ---
 
 # Business Problem
 
-Data Sell-In merupakan data penjualan perusahaan yang berasal dari berbagai channel distribusi seperti Retail, Grosir, Modern Trade, Projects, dan channel lainnya.
+Organizations generate sales transaction data from multiple operational systems and business channels every month. Before the data can be used for reporting and analysis, it must be consolidated, cleaned, standardized, enriched, and merged with historical records.
 
-Setiap bulan data transaksi diperoleh dari berbagai sumber master data dan file SAP yang perlu dilakukan proses cleaning, standardisasi, mapping, serta penggabungan dengan data historis.
+Traditionally, this process is performed manually using spreadsheets, leading to several challenges:
 
-Sebelum automation ini dibuat, proses pengolahan data dilakukan secara manual menggunakan Excel sehingga:
+- Time-consuming data preparation
+- High risk of human error
+- Inconsistent master data across reporting periods
+- Difficulties handling transaction revisions
+- Delayed business reporting
 
-- Membutuhkan waktu yang lama untuk proses konsolidasi data
-- Rentan terjadi human error saat mapping dan update master data
-- Sulit menjaga konsistensi data antar periode
-- Membutuhkan effort besar untuk melakukan revisi data transaksi
-- Proses analisa menjadi lebih lambat karena data belum siap digunakan
-
-Data Sell-In ini menjadi salah satu sumber utama analisa performa penjualan yang digunakan oleh Manager, ASM, RSM, dan Management setiap bulan untuk:
-
-- Monitoring penjualan per channel
-- Monitoring penjualan per area dan region
-- Analisa performa SDO
-- Analisa produk dan kategori
-- Tracking pertumbuhan penjualan bulanan
-- Penyusunan strategi penjualan berikutnya
-
-Automation ETL ini dibuat untuk mempercepat proses pengolahan data, meningkatkan akurasi, dan menghasilkan raw data yang siap digunakan untuk reporting dan analisa bisnis.
+This ETL pipeline automates the entire process, enabling analysts and business users to work with reliable, consistent, and analytics-ready data.
 
 ---
 
 # Solution
 
-Script ini mengotomatisasi seluruh proses ETL mulai dari:
+This project automates the complete monthly ETL workflow by:
 
-- Load data SAP dan master data
-- Cleaning dan standardisasi data
-- Update master customer dan SDO
-- Mapping produk dan organisasi sales
-- Perhitungan REAL QTY
-- Penggabungan data historis dan data bulan berjalan
-- Update informasi customer, region, dan product hierarchy
-- Generate raw data final siap analisa
+- Loading transaction and reference datasets
+- Cleaning and standardizing raw data
+- Enriching records using multiple master datasets
+- Applying business transformation rules
+- Calculating derived metrics
+- Merging historical and current-period data
+- Generating a final dataset ready for reporting and analytics
 
 ---
 
@@ -51,90 +39,71 @@ Script ini mengotomatisasi seluruh proses ETL mulai dari:
 ```mermaid
 flowchart TD
 
-A[Load Master Data]
-B[Load MTD YTD]
+A[Load Reference Data]
+B[Load Monthly Transaction Data]
 
-A --> C[Update MD_TOKO]
+A --> C[Update Master Data]
 B --> C
 
-A --> D[Update MD_SDO]
-B --> D
+C --> D[Build Current Dataset]
 
-C --> E[Build raw_new]
-D --> E
+D --> E[Data Enrichment]
 
-E --> F[Join Master Data]
+E --> E1[Customer Mapping]
+E --> E2[Product Mapping]
+E --> E3[Sales Organization Mapping]
+E --> E4[Category Mapping]
+E --> E5[Business Rule Transformation]
 
-F --> F1[MD_TOKO]
-F --> F2[MD_SDO]
-F --> F3[SPV ASM RSM]
-F --> F4[SKU Master]
-F --> F5[PG1 Mapping]
-F --> F6[SUBPG1 Mapping]
-F --> F7[Group Mapping]
+E --> F[Calculate Derived Metrics]
 
-F --> G[Calculate REAL QTY]
+F --> G[Generate Current Dataset]
 
-G --> H[Export raw_new]
+G --> H[Load Historical Dataset]
 
-H --> I[Load raw_old]
+H --> I[Merge Historical and Current Data]
 
-I --> J[Update Desc Brand]
-J --> K[Update SDO]
+I --> J[Final Validation]
 
-K --> L[Merge raw_old + raw_new]
-
-L --> M[Update Final Data]
-
-M --> M1[Address]
-M --> M2[Customer Name MT]
-M --> M3[SDO Update]
-M --> M4[SPV ASM RSM]
-M --> M5[Region Reg2]
-M --> M6[Pricelist Desc]
-
-M --> N[Export Final Sell-In]
+J --> K[Generate Analytics Dataset]
 ```
 
 ---
 
 # Features
 
-## Customer & Master Data
-
-- Auto update MD_TOKO
-- Auto update MD_SDO
-- Customer code normalization
-- Customer group standardization
-- Customer name update untuk Modern Trade
-
-## Product Mapping
-
-- SKU Mapping
-- Internal Code Mapping
-- PG Mapping
-- SUBPG Mapping
-- PG 1 Mapping
-- SUBPG1 Mapping
-- Pricelist Description Update
-
-## Sales Organization
-
-- SDO Update
-- SPV Mapping
-- ASM Mapping
-- RSM Mapping
-- Region Mapping
-- Reg2 Mapping
-
 ## Data Processing
 
-- Merge raw_old + raw_new
-- Duplicate DR Number handling
-- REAL QTY calculation
-- REG/FREE classification
-- Address update
+- Automated ETL workflow
+- Data cleaning and normalization
+- Customer data standardization
+- Product mapping
+- Sales organization mapping
+- Category mapping
+- Business rule transformation
+- Duplicate transaction handling
+- Historical data integration
+- Automated output generation
+
+---
+
+## Data Enrichment
+
+- Customer information enrichment
+- Product hierarchy mapping
+- Geographic mapping
+- Sales organization enrichment
+- Reference data integration
+
+---
+
+## Data Quality
+
+- Missing value handling
+- Duplicate detection
 - Data validation
+- Standardized output format
+- Historical consistency checks
 
 ---
 
@@ -146,11 +115,11 @@ project/
 ├── raw/
 ├── master/
 ├── output/
+├── config/
 ├── script/
-├── backup/
 │
-├── sellin_etl.py
-└── run_sellin_etl.bat
+├── etl_pipeline.py
+└── run_etl.bat
 ```
 
 ---
@@ -163,172 +132,97 @@ pip install pandas openpyxl xlrd
 
 ---
 
-# Master Data Sources
+# Workflow
 
-| File | Fungsi |
-|--------|---------|
-| Raw Data Sell IN | Data histori utama |
-| TEMPLATE_SELL_IN_SAP | MD_TOKO dan MD_SDO |
-| SAP Customer Master | Master customer SAP |
-| MTD YTD REPORT | Data transaksi bulan berjalan |
-| SDO UPDATE | Update SDO terbaru |
-| SKU Master | Mapping produk |
-| SPV RSM | Mapping organisasi sales |
-| MS DC | Update desc dan brand |
-| Master Data Yee | Mapping PG 1 |
-| Group | Mapping customer group |
-| SWM Grouping | Mapping SUBPG1 |
-| Pricelist | Update description terbaru |
-
----
-
-# Configuration
-
-Update bagian berikut setiap bulan:
-
-```python
-PATH_RAW_OLD
-PATH_TEMPLATE
-PATH_SAP
-PATH_MTD_YTD
-PATH_SDO_UPDATE
-PATH_MD_SKU
-PATH_SPVRSM
-PATH_MS_DC
-PATH_MD_YEE
-PATH_GROUP
-PATH_SWM
-PATH_PRICELIST
-```
-
-Update cycle:
-
-```python
-CYCLE = "C06"
-DUMMY_CYCLE = "C0626"
-```
-
----
-
-# Cara Menjalankan
-
-## Via Terminal
-
-```bash
-python sellin_etl.py
-```
-
-## Via BAT
-
-```bash
-run_sellin_etl.bat
-```
+1. Load monthly transaction data.
+2. Load reference/master datasets.
+3. Standardize customer and product information.
+4. Enrich transaction records.
+5. Apply business transformation rules.
+6. Calculate derived metrics.
+7. Merge with historical data.
+8. Validate the final dataset.
+9. Export the analytics-ready output.
 
 ---
 
 # Output
 
-Script menghasilkan:
+The ETL pipeline generates the following outputs:
 
-| Output | Keterangan |
-|----------|-----------|
-| raw_new_CXXXX.xlsx | Data bulan berjalan |
-| raw_data_CXXXX_rev1.xlsx | Data final gabungan |
-
-Contoh:
-
-```text
-raw_new_C0626.xlsx
-raw_data_C0626_rev1.xlsx
-```
+| Output | Description |
+|----------|-------------|
+| Current Dataset | Processed transaction data for the current reporting period |
+| Analytics Dataset | Consolidated historical and current transaction data ready for reporting |
 
 ---
 
-# Business Rules
+# Key Transformations
 
-## Customer Group Mapping
-
-| SAP Type | Output |
-|-----------|---------|
-| 2 | RETAIL |
-| 3 | GROSIR |
-| 5 | OTHERS |
-| 16 | SEMI-GROSIR |
-
----
-
-## REAL QTY Logic
-
-| Internal Code | Multiplier |
-|--------------|------------|
-| AB4 / EB4 / BL4 / XB4 | x4 |
-| AB3 / BBT / EB3 / ER3 / BB2 | x3 |
-| BBL | x5 |
-| Others | x1 |
-
-Formula:
-
-```text
-REAL QTY = QTY × Multiplier
-```
+- Customer normalization
+- Product hierarchy mapping
+- Sales organization mapping
+- Geographic mapping
+- Business rule transformation
+- Duplicate transaction removal
+- Historical data merge
+- Derived metric calculation
 
 ---
 
-## REG/FREE Classification
+# Technologies
 
-| Condition | Result |
-|------------|---------|
-| Total (with VAT) < 1000 | FREE |
-| Total (with VAT) ≥ 1000 | REG |
-
----
-
-## Duplicate DR Number Handling
-
-Saat proses merge:
-
-- DR Number yang muncul di raw_new dianggap data terbaru
-- Data lama pada raw_old akan dihapus
-- Data raw_new akan menggantikan data lama
-
-Tujuan:
-
-- Menghindari double counting
-- Mengakomodasi revisi transaksi dari SAP
-
----
-
-# Final Data Enrichment
-
-Setelah merge selesai dilakukan update:
-
-- Google Maps Address
-- Customer Name Modern Trade
-- SDO Update
-- SPV
-- ASM
-- RSM
-- Region
-- Reg2
-- Product Description
-- PG 1
-- SUBPG1
+| Category | Technology |
+|-----------|------------|
+| Language | Python |
+| Data Processing | Pandas |
+| Excel Processing | OpenPyXL |
+| Data Source | Excel |
+| ETL | Extract, Transform, Load |
 
 ---
 
 # Future Improvements
 
-- YAML Configuration
-- Logging System
-- Error Handling Report
-- Scheduler Automation
-- Email Notification
-- Database Integration
-- Dashboard Integration
-- Auto Cycle Detection
+- Configuration using YAML
+- Logging framework
+- Automated testing
+- Incremental processing
+- Database integration
+- Apache Airflow orchestration
+- Docker containerization
+- CI/CD pipeline
+
+---
+
+# Skills Demonstrated
+
+- ETL Development
+- Data Cleaning
+- Data Transformation
+- Data Validation
+- Data Integration
+- Data Engineering
+- Python Automation
+- Pandas
+- Excel Automation
+- Business Data Processing
+
+---
+
+# Disclaimer
+
+This repository demonstrates the ETL architecture and data processing workflow only.
+
+To protect confidential business information:
+
+- No proprietary datasets are included.
+- All configuration values have been anonymized.
+- Internal business rules have been generalized.
+- Sample datasets (if provided) contain fictional or anonymized data.
 
 ---
 
 # Author
 
-Developed for internal Sell-In ETL Automation and Sales Performance Reporting.
+Developed as a personal Data Engineering portfolio project demonstrating ETL automation, data transformation, and analytics dataset generation.
