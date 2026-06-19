@@ -19,9 +19,9 @@ import pandas as pd
 
 PATH_RAW_OLD    = r"C:\Users\USER\Documents\MEVAL\Raw data\Raw Data Sell IN - 2023-2025 (C0526) Rev 1.xlsx"
 PATH_TEMPLATE   = r"C:\Users\USER\Documents\MEVAL\TEMPLATE\2026\TEMPLATE_SELL_IN_SAP 040426.xlsx"
-PATH_SAP        = r"C:\Users\USER\Documents\SAP\SAP GUI\export customermasterlist 08062026.XLSX"
-PATH_MTD_YTD    = r"C:\Users\USER\Documents\MEVAL\MTD YTD\2026\C06\MTD YTD REPORT C06 06.06.2026.xlsx"
-PATH_SDO_UPDATE = r"C:\Users\USER\Documents\MEVAL\SDO\SDO UPDATE ALL AREA JUNI.xlsx"
+PATH_SAP        = r"C:\Users\USER\Documents\SAP\SAP GUI\export customermasterlist 18062026.XLSX"
+PATH_MTD_YTD    = r"C:\Users\USER\Documents\MEVAL\MTD YTD\2026\C06\MTD YTD REPORT C06 17.06.2026.xlsx"
+PATH_SDO_UPDATE = r"C:\Users\USER\Documents\MEVAL\SDO\SDO UPDATE JUNI_REV.xlsx"
 PATH_MD_SKU     = r"C:\Users\USER\Documents\MEVAL\Master Data\skuu6.xlsx"
 PATH_SPVRSM     = r"C:\Users\USER\Documents\MEVAL\Master Data\spv rsm.xlsx"
 PATH_MS_DC      = r"C:\Users\USER\Documents\MEVAL\Master Data\ms dc.xlsx"
@@ -679,7 +679,7 @@ def main():
 
     # 3. Load SDO Update
     print("Loading SDO Update...")
-    sdo_update = pd.read_excel(PATH_SDO_UPDATE)
+    sdo_update = pd.read_excel(PATH_SDO_UPDATE, sheet_name='Sheet1')
     sdo_update['Customer Code'] = sdo_update['Customer Code'].astype(str).apply(normalize_customer_code)
 
     # 4. Load MTD YTD — sekali, index bersih
