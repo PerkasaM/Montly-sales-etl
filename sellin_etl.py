@@ -20,15 +20,16 @@ import pandas as pd
 PATH_RAW_OLD    = r"C:\Users\USER\Documents\MEVAL\Raw data\Raw Data Sell IN - 2023-2025 (C0526) Rev 1.xlsx"
 PATH_TEMPLATE   = r"C:\Users\USER\Documents\MEVAL\TEMPLATE\2026\TEMPLATE_SELL_IN_SAP 040426.xlsx"
 PATH_SAP        = r"C:\Users\USER\Documents\SAP\SAP GUI\export customermasterlist 18062026.XLSX"
-PATH_MTD_YTD    = r"C:\Users\USER\Documents\MEVAL\MTD YTD\2026\C06\MTD YTD REPORT C06 17.06.2026.xlsx"
+PATH_MTD_YTD    = r"C:\Users\USER\Documents\MEVAL\MTD YTD\2026\C06\MTD YTD REPORT C06 22.06.2026.xlsx"
 PATH_SDO_UPDATE = r"C:\Users\USER\Documents\MEVAL\SDO\SDO UPDATE JUNI_REV.xlsx"
 PATH_MD_SKU     = r"C:\Users\USER\Documents\MEVAL\Master Data\skuu6.xlsx"
 PATH_SPVRSM     = r"C:\Users\USER\Documents\MEVAL\Master Data\spv rsm.xlsx"
 PATH_MS_DC      = r"C:\Users\USER\Documents\MEVAL\Master Data\ms dc.xlsx"
-PATH_MD_YEE     = r"C:\Users\USER\Documents\MEVAL\Master Data\Master Data yee.xlsx"
+PATH_MD_SUBPRODUK     = r"C:\Users\USER\Documents\MEVAL\Master Data\sub produk.xlsx"
 PATH_GROUP      = r"C:\Users\USER\Documents\MEVAL\Master Data\Group.xlsx"
 PATH_SWM        = r"C:\Users\USER\Documents\MEVAL\Master Data\SWM_grouping_.xlsx"
-PATH_PRICELIST  = r"C:\Users\USER\Documents\MEVAL\Master Data\PRICELIST MEVAL 01042026 INT.xlsx"    
+PATH_PRICELIST  = r"C:\Users\USER\Documents\MEVAL\Master Data\PRICELIST MEVAL 01042026 INT.xlsx"
+PATH_SDO_AKTIF  = r"C:\Users\USER\Documents\MEVAL\Generate\selllin\data\SDO aktif.xlsx"
 
 # Info cycle bulan ini — ganti setiap bulan
 CYCLE       = "C06"
@@ -95,25 +96,51 @@ def normalize_customer_code(code):
 
 
 def cleaning_sdo(sdo):
-    """Normalisasi nama SDO agar cocok dengan MD_SDO."""
+    """
+    Normalisasi nama SDO agar cocok dengan MD_SDO dan file SDO aktif.
+    Mapping: nama variasi/typo → nama standar di master.
+    """
     if pd.isna(sdo):
         return None
     s = str(sdo).upper().strip()
+
+    # Hapus prefix/suffix yang tidak relevan
+    s = s.replace('MO ', '', 1) if s.startswith('MO ') else s  # "MO MOHAMMAD..." → "MOHAMMAD..."
+
     mapping = {
-        'AHMAD IMAM TAUFIQ':    'IMAM TAUFIQ',
-        'IMAM TAUFIK':          'IMAM TAUFIQ',
-        "IMAM SHOVI'I":         'IMAM SHOVII',
-        'RIZAL ECOM':           'E-COMMERCE',
-        'ANDY WIJAYA':          'ANDY',
-        'ABDUL JABBAR':         'ABDUL JABAR',
-        'ARDIAN DWI P.':        'ARDIAN DWI P',
-        'ARDI YULI KURNAWAN':  'ARDI YULI KURNIAWAN',
-        'MULYADI M':            'MULYADI',
-        'ANDI MANGGALA':        'ANDI MANGGALA PUTRA',
-        'MO MOHAMMAD HENDRA FARIZAL':   'MOHAMMAD HENDRA FARIZAL',
-        'MUHAMMAD LANANG GALIH':   'MUHAMMAD LANANG GALIH GUMILANG'
+        # Nama lengkap → nama standar
+        'AHMAD IMAM TAUFIQ':                'IMAM TAUFIQ',
+        'IMAM TAUFIK':                      'IMAM TAUFIQ',
+        "IMAM SHOVI'I":                     'IMAM SHOVII',
+        "IMAM SHOVI":                       'IMAM SHOVII',
+        'RIZAL ECOM':                       'E-COMMERCE',
+        'ANDY WIJAYA':                      'ANDY',
+        'ABDUL JABBAR':                     'ABDUL JABAR',
+        'ARDIAN DWI P.':                    'ARDIAN DWI P',
+        'ARDI YULI KURNAWAN':               'ARDI YULI KURNIAWAN',
+        'MULYADI M':                        'MULYADI',
+        'ANDI MANGGALA':                    'ANDI MANGGALA PUTRA',
+        'MOHAMMAD HENDRA FARIZAL':          'MOHAMMAD HENDRA FARIZAL',
+        'MUHAMMAD LANANG GALIH':            'MUHAMMAD LANANG GALIH GUMILANG',
+        'LANANG GALIH':                     'MUHAMMAD LANANG GALIH GUMILANG',
+        'RISKY WAHYUDI':                    'RIZKI WAHYUDI',
+        'RIZKY WAHYUDI':                    'RIZKI WAHYUDI',
+        'ABDULLAH RAYHAN':                  'ABDULLAH',
+        # Typo umum
+        'ABDILLLAH':                        'ABDILLAH',
+        'ACH LUKMAN':                       'ACH LUKMAN HAKIM',
+        'AGUNG SEDAYO':                     'AGUNG SEDAYU',
+        'AHA JUNI':                         'AHA JUNI ADI',
     }
     for k, v in mapping.items():
+        if s == k:          # exact match dulu (lebih aman dari substring)
+            return v
+    # Substring match hanya untuk prefix pendek yang ambigu
+    SUBSTR_MAP = {
+        'RIZAL ECOM':   'E-COMMERCE',
+        'ANDI MANGGALA': 'ANDI MANGGALA PUTRA',
+    }
+    for k, v in SUBSTR_MAP.items():
         if k in s:
             return v
     return s
@@ -380,7 +407,7 @@ def process_new_month(md_toko, md_sdo, md_sdo_updated, md_sku, spvrsm,
     )
     raw_new['Internal Code'] = raw_new['Internal Code'].astype(str).str.strip().str.upper()
 
-    # --- Join Master Data Yee → PG 1 ---
+    # --- Join sub produk → PG 1 ---
     md_yee_join = (
         md_yee.rename(columns={'SHORT CODE': 'Internal Code', 'SUBPG2': 'PG 1'})
         [['Internal Code', 'PG 1']].drop_duplicates('Internal Code')
@@ -648,6 +675,52 @@ def update_spv_asm_rsm(df_final, spvrsm):
     return df_final
 
 
+def update_status_sdo(df_final, sdo_aktif):
+    """
+    Update kolom Status SDO di seluruh df_final berdasarkan file SDO_aktif.
+    Kunci lookup: SDO Name (di-normalize dengan cleaning_sdo sebelum lookup).
+
+    Kolom SDO_aktif: SDO Name, STATUS SDO, AREA
+    Hanya SDO Name yang ada di file aktif yang Status SDO-nya diupdate.
+    Yang tidak ditemukan dibiarkan (tidak dihapus/di-null).
+    """
+    print("Updating Status SDO dari SDO_aktif...")
+
+    # Normalize SDO Name di master aktif
+    sdo_aktif = sdo_aktif.copy()
+    sdo_aktif['SDO Name'] = sdo_aktif['SDO Name'].astype(str).str.upper().str.strip().apply(cleaning_sdo)
+    sdo_aktif = sdo_aktif.dropna(subset=['SDO Name']).drop_duplicates('SDO Name', keep='last')
+
+    # Mapping SDO Name → STATUS SDO
+    status_map = sdo_aktif.set_index('SDO Name')['STATUS SDO']
+
+    # Normalize SDO Name di df_final sebelum lookup
+    if 'SDO Name' not in df_final.columns:
+        print("  WARN: kolom 'SDO Name' tidak ada di df_final, skip.")
+        return df_final
+
+    sdo_name_clean = df_final['SDO Name'].astype(str).str.upper().str.strip().apply(cleaning_sdo)
+
+    # Tandai baris yang SDO Name-nya ada di master aktif
+    in_master = sdo_name_clean.isin(status_map.index)
+
+    # Update Status SDO
+    if 'Status SDO' not in df_final.columns:
+        df_final['Status SDO'] = None
+
+    df_final.loc[in_master, 'Status SDO'] = sdo_name_clean[in_master].map(status_map).values
+
+    n_updated  = in_master.sum()
+    n_notfound = (~in_master).sum()
+    n_aktif    = (df_final.loc[in_master, 'Status SDO'] == 'AKTIF').sum()
+    n_taktif   = (df_final.loc[in_master, 'Status SDO'] == 'TIDAK AKTIF').sum()
+
+    print(f"  {n_updated} baris Status SDO diupdate "
+          f"({n_aktif} AKTIF, {n_taktif} TIDAK AKTIF).")
+    print(f"  {n_notfound} baris SDO Name tidak ditemukan di master aktif (dibiarkan).")
+    return df_final
+
+
 # ============================================================
 # MAIN
 # ============================================================
@@ -661,8 +734,8 @@ def main():
     md_toko, md_sdo, md_sku, spvrsm, sap = load_master_data()
 
     # 2. Load master tambahan
-    print("Loading Master Data Yee...")
-    md_yee = pd.read_excel(PATH_MD_YEE, sheet_name='PG')
+    print("Loading sub produk...")
+    md_yee = pd.read_excel(PATH_MD_SUBPRODUK, sheet_name='PG')
 
     print("Loading SWM Grouping...")
     md_swm = pd.read_excel(PATH_SWM, sheet_name='modern_classic')
@@ -672,6 +745,9 @@ def main():
 
     print("Loading Pricelist...")
     pricelist = pd.read_excel(PATH_PRICELIST)
+
+    print("Loading SDO Aktif...")
+    sdo_aktif = pd.read_excel(PATH_SDO_AKTIF)
 
     print("Loading Group...")
     md_group = pd.read_excel(PATH_GROUP)
@@ -722,7 +798,18 @@ def main():
     df_final = update_master_data(raw_old, raw_new)
     df_final = update_alamat(df_final, raw_new)
     df_final = update_customer_name_mt(df_final, md_group)
-    
+
+    # Cleaning SDO Name di df_final sebelum lookup Status SDO
+    print("Cleaning SDO Name di df_final...")
+    if 'SDO Name' in df_final.columns:
+        before_clean = df_final['SDO Name'].nunique()
+        df_final['SDO Name'] = df_final['SDO Name'].astype(str).str.upper().str.strip().apply(cleaning_sdo)
+        after_clean = df_final['SDO Name'].nunique()
+        print(f"  SDO Name unik: {before_clean} → {after_clean} setelah normalisasi.")
+
+    # Update Status SDO dari master SDO aktif
+    df_final = update_status_sdo(df_final, sdo_aktif)
+
     # Update SDO Update di seluruh df_final dari file konfirmasi
     print("Updating SDO Update di df_final...")
     sdo_map = (
