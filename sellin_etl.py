@@ -17,11 +17,11 @@ import pandas as pd
 # CONFIG — update bagian ini setiap bulan
 # ============================================================
 
-PATH_RAW_OLD    = r"C:\Users\USER\Documents\MEVAL\Raw data\Raw Data Sell IN - 2023-2025 (C0526) Rev 1.xlsx"
+PATH_RAW_OLD    = r"C:\Users\USER\Documents\MEVAL\Raw data\Raw Data Sell IN - 2023-2025 (C0526) Rev 2.xlsx"
 PATH_TEMPLATE   = r"C:\Users\USER\Documents\MEVAL\TEMPLATE\2026\TEMPLATE_SELL_IN_SAP 040426.xlsx"
-PATH_SAP        = r"C:\Users\USER\Documents\SAP\SAP GUI\export customermasterlist 18062026.XLSX"
-PATH_MTD_YTD    = r"C:\Users\USER\Documents\MEVAL\MTD YTD\2026\C06\MTD YTD REPORT C06 22.06.2026.xlsx"
-PATH_SDO_UPDATE = r"C:\Users\USER\Documents\MEVAL\SDO\SDO UPDATE JUNI_REV.xlsx"
+PATH_SAP        = r"C:\Users\USER\Documents\SAP\SAP GUI\export customermasterlist 30062026.XLSX"
+PATH_MTD_YTD    = r"C:\Users\USER\Documents\MEVAL\MTD YTD\2026\C06\MTD YTD REPORT C06 30.06.2026 FINAL.xlsx"
+PATH_SDO_UPDATE = r"C:\Users\USER\Documents\MEVAL\SDO\SDO UPDATE C06_ALL_AREA.xlsx"
 PATH_MD_SKU     = r"C:\Users\USER\Documents\MEVAL\Master Data\skuu6.xlsx"
 PATH_SPVRSM     = r"C:\Users\USER\Documents\MEVAL\Master Data\spv rsm.xlsx"
 PATH_MS_DC      = r"C:\Users\USER\Documents\MEVAL\Master Data\ms dc.xlsx"
@@ -118,7 +118,7 @@ def cleaning_sdo(sdo):
         'ABDUL JABBAR':                     'ABDUL JABAR',
         'ARDIAN DWI P.':                    'ARDIAN DWI P',
         'ARDI YULI KURNAWAN':               'ARDI YULI KURNIAWAN',
-        'MULYADI M':                        'MULYADI',
+        'MULYADI':                          'MULYADI M',
         'ANDI MANGGALA':                    'ANDI MANGGALA PUTRA',
         'MOHAMMAD HENDRA FARIZAL':          'MOHAMMAD HENDRA FARIZAL',
         'MUHAMMAD LANANG GALIH':            'MUHAMMAD LANANG GALIH GUMILANG',
@@ -565,8 +565,11 @@ def update_customer_name_mt(df_final, md_group):
 def cleaning_reg2(df_final):
     """
     Update kolom Reg2 DAN Region berdasarkan kombinasi RSM dan ASM setelah data tergabung.
-    Reg2 = versi detail (CENTRAL JAVA 1, CENTRAL JAVA 2, dst)
+    Reg2 = versi detail (CENTRAL JAVA 1, CENTRAL JAVA 2, PANTURA, dst)
     Region = versi broad (CENTRAL JAVA, JABODETABEK, WEST JAVA, SULAWESI)
+
+    Format rules: (kondisi, Reg2_baru, Region_baru)
+    - Jika Region_baru = None → hanya Reg2 yang diupdate, Region tidak disentuh
     """
     print("Cleaning Region & Reg2 berdasarkan RSM/ASM...")
 
@@ -575,7 +578,8 @@ def cleaning_reg2(df_final):
     rsm = rsm.fillna('')
     asm = asm.fillna('')
 
-    # (kondisi, Reg2, Region)
+    # (kondisi, Reg2_baru, Region_baru)
+    # Region_baru = None → hanya Reg2 yang diupdate
     rules = [
         (rsm == 'IMAM SHOVII',                                          'CENTRAL JAVA 3',   'CENTRAL JAVA'),
         ((rsm == 'ARIFIN SANTIKA') & (asm == 'AL JUSTIAN SAPUTRA'),    'JABODETABEK',      'JABODETABEK'),
@@ -583,21 +587,25 @@ def cleaning_reg2(df_final):
         (rsm == 'ANDI HARIS',                                           'CENTRAL JAVA 1',   'CENTRAL JAVA'),
         (asm == 'IWAN SUSANTO',                                         'CENTRAL JAVA 2',   'CENTRAL JAVA'),
         (asm == 'JEKY TIRTA',                                           'SULAWESI',         'SULAWESI'),
+        (asm == 'FREEKY JINO',                                          'PANTURA',          None),
     ]
 
-    updated_reg2 = 0
+    updated_reg2   = 0
     updated_region = 0
     for cond, val_reg2, val_region in rules:
-        mask_reg2   = cond & (df_final['Reg2'] != val_reg2)
-        mask_region = cond & (df_final['Region'] != val_region)
-        df_final.loc[mask_reg2,   'Reg2']   = val_reg2
-        df_final.loc[mask_region, 'Region'] = val_region
-        updated_reg2   += mask_reg2.sum()
-        updated_region += mask_region.sum()
+        # Update Reg2
+        mask_reg2 = cond & (df_final['Reg2'] != val_reg2)
+        df_final.loc[mask_reg2, 'Reg2'] = val_reg2
+        updated_reg2 += mask_reg2.sum()
+
+        # Update Region hanya jika val_region tidak None
+        if val_region is not None:
+            mask_region = cond & (df_final['Region'] != val_region)
+            df_final.loc[mask_region, 'Region'] = val_region
+            updated_region += mask_region.sum()
 
     print(f"  {updated_reg2} baris Reg2 diupdate, {updated_region} baris Region diupdate.")
     return df_final
-
 
 def update_desc_pricelist(df_final, pricelist):
     """
@@ -828,11 +836,13 @@ def main():
     df_final = update_desc_pricelist(df_final, pricelist)
 
     # Uppercase Desc dan SUBPG sesuai standar raw_old
-    print("Uppercasing kolom Desc dan SUBPG...")
+    print("Uppercasing kolom Desc, SUBPG dan PG...")
     if 'Desc' in df_final.columns:
         df_final['Desc'] = df_final['Desc'].astype(str).str.upper().replace('NAN', None)
     if 'SUBPG' in df_final.columns:
         df_final['SUBPG'] = df_final['SUBPG'].astype(str).str.upper().replace('NAN', None)
+    if 'PG' in df_final.columns:
+        df_final['PG'] = df_final['PG'].astype(str).str.upper().replace('NAN',None) 
 
     # 9. Simpan
     df_final.to_excel(OUTPUT_FINAL, index=False)
