@@ -17,11 +17,11 @@ import pandas as pd
 # CONFIG — update bagian ini setiap bulan
 # ============================================================
 
-PATH_RAW_OLD    = r"C:\Users\USER\Documents\MEVAL\Raw data\Raw Data Sell IN - 2023-2026 (C0726) Rev 1.xlsx"
+PATH_RAW_OLD    = r"C:\Users\USER\Documents\MEVAL\Raw data\Raw Data Sell IN - 2024-2026 (C0726).xlsx"
 PATH_TEMPLATE   = r"C:\Users\USER\Documents\MEVAL\TEMPLATE\2026\TEMPLATE_SELL_IN_SAP 040426.xlsx"
-PATH_SAP        = r"C:\Users\USER\Documents\SAP\SAP GUI\export customermasterlist 26082026.XLSX"
-PATH_MTD_YTD    = r"C:\Users\USER\Documents\MEVAL\MTD YTD\2026\C08\MTD YTD REPORT C08 27.08.2026.xlsx"
-PATH_SDO_UPDATE = r"C:\Users\USER\Documents\MEVAL\SDO\SDO UPDATE C07_ALL_AREA.xlsx"
+PATH_SAP        = r"C:\Users\USER\Documents\SAP\SAP GUI\export customermasterlist 01092026.XLSX"
+PATH_MTD_YTD    = r"C:\Users\USER\Documents\MEVAL\MTD YTD\2026\C08\MTD YTD REPORT C08 31.08.2026 FINAL.xlsx"
+PATH_SDO_UPDATE = r"C:\Users\USER\Documents\MEVAL\SDO\SDO UPDATE C08_ALL_AREA_DIRECT agustus.xlsx"
 PATH_MD_SKU     = r"C:\Users\USER\Documents\MEVAL\Master Data\skuu6.xlsx"
 PATH_SPVRSM     = r"C:\Users\USER\Documents\MEVAL\Master Data\spv rsm.xlsx"
 PATH_MS_DC      = r"C:\Users\USER\Documents\MEVAL\Master Data\ms dc.xlsx"
@@ -916,18 +916,19 @@ def main():
     # Update Status SDO dari master SDO aktif
     df_final = update_status_sdo(df_final, sdo_aktif)
 
-    # Update SDO Update di seluruh df_final dari file konfirmasi
-    print("Updating SDO Update di df_final...")
+    # Update SDO Update di seluruh df_final dari md_sdo_updated
+    # (sudah include konfirmasi leader + fallback MTD)
+    print("Updating SDO Update di df_final dari md_sdo_updated...")
     sdo_map = (
-        sdo_update[['Customer Code', 'SDO Update']]
-        .dropna(subset=['SDO Update'])
+        md_sdo_updated[['Customer Code', 'CURRENT SDO']]
+        .dropna(subset=['CURRENT SDO'])
         .drop_duplicates('Customer Code', keep='last')
-        .set_index('Customer Code')['SDO Update']
+        .set_index('Customer Code')['CURRENT SDO']
     )
     df_final['Customer Code'] = df_final['Customer Code'].astype(str).apply(normalize_customer_code)
     mask = df_final['Customer Code'].isin(sdo_map.index)
     df_final.loc[mask, 'SDO Update'] = df_final.loc[mask, 'Customer Code'].map(sdo_map)
-    print(f"  {mask.sum()} baris SDO Update diupdate di df_final.")
+    print(f"  {mask.sum()} baris SDO Update diupdate di df_final ({sdo_map.shape[0]} customer di md_sdo_updated).")
 
     df_final = update_spv_asm_rsm(df_final, spvrsm)
     df_final = cleaning_reg2(df_final)
