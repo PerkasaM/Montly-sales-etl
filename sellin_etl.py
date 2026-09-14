@@ -17,10 +17,10 @@ import pandas as pd
 # CONFIG — update bagian ini setiap bulan
 # ============================================================
 
-PATH_RAW_OLD    = r"C:\Users\USER\Documents\MEVAL\Raw data\Raw Data Sell IN - 2024-2026 (C0726).xlsx"
+PATH_RAW_OLD    = r"C:\Users\USER\Documents\MEVAL\Raw data\Raw Data Sell IN - 2023-2026 (C0826).xlsx"
 PATH_TEMPLATE   = r"C:\Users\USER\Documents\MEVAL\TEMPLATE\2026\TEMPLATE_SELL_IN_SAP 040426.xlsx"
 PATH_SAP        = r"C:\Users\USER\Documents\SAP\SAP GUI\export customermasterlist 01092026.XLSX"
-PATH_MTD_YTD    = r"C:\Users\USER\Documents\MEVAL\MTD YTD\2026\C08\MTD YTD REPORT C08 31.08.2026 FINAL.xlsx"
+PATH_MTD_YTD    = r"C:\Users\USER\Documents\MEVAL\MTD YTD\2026\C09\MTD YTD REPORT C09 12.09.2026.xlsx"
 PATH_SDO_UPDATE = r"C:\Users\USER\Documents\MEVAL\SDO\SDO UPDATE C08_ALL_AREA_DIRECT agustus.xlsx"
 PATH_MD_SKU     = r"C:\Users\USER\Documents\MEVAL\Master Data\skuu6.xlsx"
 PATH_SPVRSM     = r"C:\Users\USER\Documents\MEVAL\Master Data\spv rsm.xlsx"
@@ -33,8 +33,8 @@ PATH_SDO_AKTIF  = r"C:\Users\USER\Documents\MEVAL\Generate\selllin\data\SDO akti
 PATH_PRODUCT    = r"C:\Users\USER\Documents\MEVAL\Master Data\Product Data.xlsx"
 
 # Info cycle bulan ini — ganti setiap bulan
-CYCLE       = "C08"
-DUMMY_CYCLE = "C0826"
+CYCLE       = "C09"
+DUMMY_CYCLE = "C0926"
 MTD_SHEET   = "SAP CUMULATIVE"
 
 # File output
@@ -489,31 +489,42 @@ def update_master_data(raw_old, raw_new):
     return df_final
 
 
-def update_alamat(df_final, raw_new):
-    print("Updating alamat dari raw_new (hanya baris yang belum punya alamat Google Maps)...")
+def update_alamat(df_final, md_toko):
+    """
+    Update kolom Address di seluruh df_final dari MD_TOKO.
+    Kondisi update (keduanya harus terpenuhi):
+    1. Alamat di df_final belum punya tanda '+' (belum Google Maps)
+    2. Alamat di df_final BERBEDA dengan alamat di MD_TOKO
+    Baris yang sudah punya '+' atau sudah sama dengan MD_TOKO → tidak disentuh.
+    """
+    print("Updating alamat dari MD_TOKO (belum Google Maps + ada perbedaan)...")
 
-    # Ambil alamat Google dari raw_new — hanya yang mengandung tanda '+'
-    google_addr = (
-        raw_new[['Customer Code', 'Address']]
+    addr_map = (
+        md_toko[['Customer Code', 'Address']]
         .dropna(subset=['Address'])
-        .loc[raw_new['Address'].astype(str).str.contains(r'\+', regex=True)]
         .drop_duplicates('Customer Code', keep='last')
         .set_index('Customer Code')['Address']
     )
 
-    if google_addr.empty:
-        print("  Tidak ada alamat Google Maps di raw_new, skip update.")
+    if addr_map.empty:
+        print("  Tidak ada alamat di MD_TOKO, skip update.")
         return df_final
 
-    # Hanya update baris yang:
-    # 1. Customer Code-nya ada di mapping alamat Google
-    # 2. Alamatnya belum punya tanda '+' (belum Google Maps)
-    has_customer  = df_final['Customer Code'].isin(google_addr.index)
+    has_customer  = df_final['Customer Code'].isin(addr_map.index)
     no_plus       = ~df_final['Address'].astype(str).str.contains(r'\+', regex=True, na=True)
-    update_mask   = has_customer & no_plus
 
-    df_final.loc[update_mask, 'Address'] = df_final.loc[update_mask, 'Customer Code'].map(google_addr)
-    print(f"  {update_mask.sum()} baris alamat diupdate ({google_addr.shape[0]} customer dengan alamat Google).")
+    # Cek perbedaan: alamat di df_final vs alamat di MD_TOKO
+    addr_from_map = df_final['Customer Code'].map(addr_map).astype(str).str.strip()
+    addr_current  = df_final['Address'].astype(str).str.strip()
+    is_different  = addr_current != addr_from_map
+
+    update_mask = has_customer & no_plus & is_different
+
+    df_final.loc[update_mask, 'Address'] = df_final.loc[update_mask, 'Customer Code'].map(addr_map)
+
+    n_no_plus    = (has_customer & no_plus).sum()
+    n_same       = (has_customer & no_plus & ~is_different).sum()
+    print(f"  {update_mask.sum()} baris diupdate, {n_same} baris skip (sudah sama dengan MD_TOKO).")
     return df_final
 
 
@@ -902,7 +913,7 @@ def main():
 
     # 8. Gabung + update
     df_final = update_master_data(raw_old, raw_new)
-    df_final = update_alamat(df_final, raw_new)
+    df_final = update_alamat(df_final, md_toko)
     df_final = update_customer_name_mt(df_final, md_group)
 
     # Cleaning SDO Name di df_final sebelum lookup Status SDO
